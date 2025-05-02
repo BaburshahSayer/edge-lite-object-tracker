@@ -45,7 +45,7 @@ def main():
 
     print("Running detection and tracking. Press 'q' or click 'Close' to quit.")
 
-    frame_skip = 3  # Skip every 3rd frame to improve performance
+    frame_skip = 3  # this is the frame skip while being track at the same time. it makes it bit faster while detection.
     frame_count = 0
 
     window_name = "EdgeLite Detection and Tracking"
@@ -59,7 +59,7 @@ def main():
         frame_count += 1
         frame_resized = cv2.resize(frame, (640, 480))
 
-        # Always draw close button and set mouse callback
+        # close button at the screen to make it easy to close it.
         frame_resized, btn_topleft, btn_bottomright = draw_close_button(frame_resized)
         cv2.setMouseCallback(window_name, mouse_callback, (btn_topleft, btn_bottomright))
 
