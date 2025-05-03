@@ -1,104 +1,131 @@
 import cv2
+import os
+import time
+import csv
+from datetime import datetime
 from detector import ObjectDetector
 from tracker import Sort
-import time
 from utils import match_detections_with_tracks
 
-
-# Global flag to detect close button click
-close_button_clicked = False
-
-# Draw detection boxes and add track ID labels
+# Draw bounding boxes and labels
 def draw_detections(frame, detections):
     for det in detections:
         x1, y1, x2, y2 = det['bbox']
         label = f"{det.get('label', 'object')} ID: {det.get('track_id', '?')}"
         cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 255, 0), 2)
+        cv2.putText(frame, label, (x1, max(y1 - 10, 20)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     return frame
 
-# Draw a close button on the frame
-def draw_close_button(frame):
-    button_top_left = (10, 10)
-    button_bottom_right = (100, 50)
-    cv2.rectangle(frame, button_top_left, button_bottom_right, (0, 0, 255), -1)  # Red background
-    cv2.putText(frame, "Close", (20, 40), cv2.FONT_HERSHEY_SIMPLEX,
-                0.8, (255, 255, 255), 2, cv2.LINE_AA)
-    return frame, button_top_left, button_bottom_right
+# Folder to save image frames
+output_folder = "output_frames"
+os.makedirs(output_folder, exist_ok=True)
 
-# Mouse callback function to detect button click
-def mouse_callback(event, x, y, flags, param):
-    global close_button_clicked
-    if event == cv2.EVENT_LBUTTONDOWN:
-        button_top_left, button_bottom_right = param
-        if (button_top_left[0] <= x <= button_bottom_right[0]) and \
-           (button_top_left[1] <= y <= button_bottom_right[1]):
-            print("Close button clicked!")
-            close_button_clicked = True
+# Track entry and exit times
+object_lifecycle = {}
 
+# Save tracking data to CSV
+def save_tracking_data_to_csv(output_file="tracking_data.csv"):
+    fieldnames = ["track_id", "label", "x1", "y1", "x2", "y2", "start_time", "end_time"]
+
+    with open(output_file, mode="w", newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for track_id, data in object_lifecycle.items():
+            writer.writerow({
+                "track_id": track_id,
+                "label": data.get("label", "N/A"),
+                "x1": data.get("bbox", [0, 0, 0, 0])[0],
+                "y1": data.get("bbox", [0, 0, 0, 0])[1],
+                "x2": data.get("bbox", [0, 0, 0, 0])[2],
+                "y2": data.get("bbox", [0, 0, 0, 0])[3],
+                "start_time": data.get("start_time", ""),
+                "end_time": data.get("end_time", "")
+            })
+
+# Main function
 def main():
-    global close_button_clicked
     cap = cv2.VideoCapture(0)
-    detector = ObjectDetector(model_path="/Users/babursayer/Desktop/0101/edge-lite-object-tracker/models/yolov5s.onnx") 
-    tracker = Sort()
+    detector = ObjectDetector(model_path="/Users/babursayer/Desktop/0101/edge-lite-object-tracker/models/yolov5s.onnx")
+    tracker = Sort(max_age=10, min_hits=3)
 
-    print("Running detection and tracking. Press 'q' or click 'Close' to quit.")
+    # Save video as MJPEG (Motion JPEG)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_filename = "output_video.avi"  # Using .avi extension for MJPEG format
+    
+    # Use MJPG codec (Motion JPEG)
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+    out = cv2.VideoWriter(video_filename, fourcc, 30.0, (frame_width, frame_height))
 
-    frame_skip = 3  # this is the frame skip while being track at the same time. it makes it bit faster while detection.
+    print("Running detection and tracking. Press 'q' to quit.")
+    frame_skip = 1
     frame_count = 0
 
-    window_name = "EdgeLite Detection and Tracking"
-    cv2.namedWindow(window_name)
-
-    while cap.isOpened():
+    while True:
         ret, frame = cap.read()
-        if not ret or close_button_clicked:
+        if not ret:
             break
 
         frame_count += 1
-        frame_resized = cv2.resize(frame, (640, 480))
+        frame_input = cv2.resize(frame, (640, 640))
 
-        # close button at the screen to make it easy to close it.
-        frame_resized, btn_topleft, btn_bottomright = draw_close_button(frame_resized)
-        cv2.setMouseCallback(window_name, mouse_callback, (btn_topleft, btn_bottomright))
+        if frame_count % frame_skip == 0:
+            start_time = time.time()
+            detections = detector.detect(frame_input)
+            detection_time = time.time() - start_time
 
-        if frame_count % frame_skip != 0:
-            cv2.imshow(window_name, frame_resized)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            continue
+            track_detections = []
+            for det in detections:
+                track_detections.append({
+                    "bbox": det["bbox"],
+                    "label": det["label"],
+                })
 
-        # Run object detection
-        start_time = time.time()
-        detections = detector.detect(frame_resized)
-        detection_time = time.time() - start_time
+            tracked_objects_raw = tracker.update(track_detections)
+            tracked_objects = match_detections_with_tracks(tracked_objects_raw, detections)
 
-        # Prepare detections for tracking
-        track_detections = [{"bbox": det["bbox"], "label": det["label"]} for det in detections]
-        tracked_objects_raw = tracker.update(track_detections)
+            # Update object lifecycle
+            timestamp = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            active_ids = set()
 
-        # Add label back to tracked objects by matching bbox
-        tracked_objects = match_detections_with_tracks(tracked_objects_raw, detections)
+            for obj in tracked_objects:
+                track_id = obj.get("track_id")
+                active_ids.add(track_id)
+                if track_id not in object_lifecycle:
+                    object_lifecycle[track_id] = {
+                        "label": obj.get("label", "N/A"),
+                        "bbox": obj["bbox"],
+                        "start_time": timestamp,
+                        "end_time": timestamp
+                    }
+                else:
+                    object_lifecycle[track_id]["bbox"] = obj["bbox"]
+                    object_lifecycle[track_id]["end_time"] = timestamp
 
+            frame_output = draw_detections(frame_input.copy(), tracked_objects)
+            out.write(frame_output)
 
-        # Draw tracking results
-        frame_resized = draw_detections(frame_resized, tracked_objects)
+            fps = 1.0 / detection_time if detection_time > 0 else 0
+            cv2.putText(frame_output, f"FPS: {fps:.2f}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-        # Show FPS
-        fps = 1.0 / detection_time if detection_time > 0 else 0
-        cv2.putText(frame_resized, f"FPS: {fps:.2f}", (10, 70), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7, (0, 255, 0), 2)
+        else:
+            frame_output = frame_input.copy()
 
-        # Show the frame
-        cv2.imshow(window_name, frame_resized)
+        # Save frame image
+        frame_filename = os.path.join(output_folder, f"frame_{frame_count}.jpg")
+        cv2.imwrite(frame_filename, frame_output)
 
-        # Exit on key
+        cv2.imshow("EdgeLite", frame_output)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
+    out.release()
     cv2.destroyAllWindows()
+    save_tracking_data_to_csv()
 
 if __name__ == "__main__":
     main()
