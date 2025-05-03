@@ -1,119 +1,142 @@
 # Edge-Lite Object Tracker
 
-**Edge-Lite Object Tracker** is a lightweight real-time object detection and tracking system. It uses a YOLOv5 model (in ONNX format) for object detection and a simple SORT (Simple Online and Realtime Tracking) algorithm for tracking. Designed for efficiency, it's suitable for edge devices like Raspberry Pi, Jetson Nano, and lightweight desktops.
+This project is a real-time object detection and tracking system using the YOLOv5 model and the SORT (Simple Online and Realtime Tracking) algorithm. It captures video from a webcam, detects objects, tracks them, and outputs both a video and individual frames with bounding boxes and tracking IDs.
 
+## Features
 
-## 🚀 Features
+* Real-time object detection using a pre-trained YOLOv5 model.
+* Object tracking with the SORT algorithm.
+* Frame saving and video recording with bounding boxes.
+* Object lifecycle tracking, including start and end times.
+* Output video and individual frame images stored in a folder.
 
-- ✅ Real-time object detection with YOLOv5 (ONNX)
-- ✅ Custom SORT tracking implementation
-- ✅ OpenCV GUI with live FPS display
-- ✅ Frame skipping for better performance
-- ✅ Clean, modular codebase (easily extendable)
-- ✅ Close window with GUI button or `q` key
+## Prerequisites
 
+* Python 3.6 or higher
+* OpenCV
+* ONNX Runtime
+* NumPy
+* Other dependencies (listed in requirements)
 
-## 📁 Project Structure
+## Setup and Installation
 
+### Step 1: Clone the repository
+
+Clone this repository to your local machine:
+
+```bash
+git clone https://github.com/yourusername/edge-lite-object-tracker.git
+cd edge-lite-object-tracker
 ```
-edge-lite-object-tracker/
-├── models/                # ONNX models (e.g. yolov5n.onnx)
-├── src/
-│   ├── main.py            # Main execution script
-│   ├── detector.py        # Object detection logic
-│   ├── tracker.py         # Object tracking logic
-├── requirements.txt       # Python dependencies
-└── README.md              # Project documentation
-```
 
+### Step 2: Install dependencies
 
-## 🧩 Prerequisites
-
-Make sure you have Python 3.7+ installed.
-
-Install required packages:
+You can install the required dependencies using pip. It is recommended to use a virtual environment.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Or manually:
+Here is a sample `requirements.txt`:
 
-```bash
-pip install opencv-python numpy onnxruntime filterpy
+```
+opencv-python
+onnxruntime
+numpy
 ```
 
+### Step 3: Download YOLOv5 Model
 
-## ▶️ Running the Tracker
+Download the YOLOv5 ONNX model (`yolov5s.onnx`) from [the official YOLOv5 repository](https://github.com/ultralytics/yolov5/releases) or another reliable source and place it in the `models/` directory.
 
-1. **Clone the repository:**
+### Step 4: Run the Program
 
-```bash
-git clone https://github.com/your-username/edge-lite-object-tracker.git
-cd edge-lite-object-tracker
-```
-
-2. **Put your model in the `models/` directory:**
-
-> e.g. `models/yolov5n.onnx`  
-> You can download YOLOv5 models and convert them to ONNX using [Ultralytics](https://github.com/ultralytics/yolov5).
-
-3. **Run the main script:**
+Now you can run the program to start the object detection and tracking:
 
 ```bash
 python src/main.py
 ```
 
-- Press `q` to quit
-- Or use the Close button in the top-left of the OpenCV window
+This will start capturing video from your webcam, detect objects, and track them. The processed frames will be saved in the `output_frames/` folder, and the video will be saved as `output_video.mp4`.
 
+You can press `'q'` to stop the process.
 
-## 🎥 Use a Video File Instead of Webcam
+## How It Works
 
-In `src/main.py`, change this line:
+1. **Detection**:
 
-```python
-cap = cv2.VideoCapture(0)
+   * The system uses a YOLOv5 model (converted to ONNX format) for object detection. The model detects objects and returns their bounding boxes and labels.
+
+2. **Tracking**:
+
+   * The SORT algorithm is used to track the detected objects across multiple frames. Each object is assigned a unique tracking ID.
+   * The system performs tracking by comparing the detected bounding boxes using the Intersection over Union (IoU) metric to associate objects across frames.
+
+3. **Output**:
+
+   * For each detected object, bounding boxes and tracking IDs are drawn on the frames.
+   * The processed frames are saved as individual images in the `output_frames/` folder.
+   * The processed video is saved as `output_video.mp4`.
+
+4. **Lifecycle Tracking**:
+
+   * Each object’s lifecycle, including the start and end times, is tracked and stored in a CSV file (`tracking_data.csv`).
+
+## Project Structure
+
+```
+edge-lite-object-tracker/
+├── models/                  # Store your YOLOv5 model here (e.g., yolov5s.onnx)
+├── output_frames/           # Folder where the processed frames will be saved
+├── src/
+│   ├── main.py              # Main script for running the program
+│   ├── detector.py          # Object detection using YOLOv5
+│   └── tracker.py           # Tracking algorithm (SORT)
+└── requirements.txt         # Python dependencies
 ```
 
-to:
+## File Descriptions
 
-```python
-cap = cv2.VideoCapture("path/to/video.mp4")
-```
+* **main.py**:
 
+  * Contains the main function to run the video capture, object detection, and tracking.
+  * Initializes the `ObjectDetector` and `Sort` tracker and handles video output.
 
-## ⚙️ Tuning for Better Results
+* **detector.py**:
 
-- **Too many boxes?**  
-  Increase `conf_threshold` in `detector.py`:
+  * Defines the `ObjectDetector` class that loads and uses the YOLOv5 model to detect objects.
+  * Includes helper functions like non-maximum suppression (NMS) for filtering overlapping bounding boxes.
 
-```python
-def detect(self, frame, conf_threshold=0.3):
-```
+* **tracker.py**:
 
-- **Track stability issues?**  
-  Adjust the IOU threshold in `tracker.py`:
+  * Implements the SORT tracking algorithm.
+  * Tracks the objects using the bounding boxes across frames and assigns unique tracking IDs.
 
-```python
-if self._iou(tracker.bbox, det['bbox']) > 0.3:
-```
+## Configuration
 
+You can adjust the following parameters to suit your needs:
 
-## 🛠 Close Button in OpenCV
+* **max\_age**: The maximum number of frames that an object can be unseen before it is removed from tracking.
+* **min\_hits**: The minimum number of frames an object must be seen to start tracking.
+* **iou\_threshold**: The Intersection over Union (IoU) threshold used for matching detected objects to tracked objects. You can adjust this threshold in the `Sort` class constructor if required.
 
-You can click the `X` or top-left corner of the OpenCV window to close the app gracefully. It uses `cv2.destroyAllWindows()` at the end of `main.py`.
+## Output
 
+1. **Frames**:
 
-## 📄 License
+   * All frames with object bounding boxes will be saved as individual images in the `output_frames/` folder.
 
-MIT License © 2025  
-Free to use and modify.
+2. **Video**:
 
+   * A video file named `output_video.mp4` will be saved with the tracked objects.
 
-## 🙌 Acknowledgements
+3. **CSV**:
 
-- [Ultralytics YOLOv5](https://github.com/ultralytics/yolov5)
-- [SORT Tracking Algorithm](https://github.com/abewley/sort)
-- [OpenCV](https://opencv.org/)
-```
+   * The `tracking_data.csv` file contains the following columns:
+
+     * `track_id`: The unique ID assigned to each tracked object.
+     * `label`: The object label (e.g., "person", "car").
+     * `x1`, `y1`, `x2`, `y2`: Coordinates of the bounding box.
+     * `start_time`: The timestamp when the object was first detected.
+     * `end_time`: The timestamp when the object was last seen.
+
