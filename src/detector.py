@@ -48,16 +48,7 @@ class ObjectDetector:
         self.input_name = self.session.get_inputs()[0].name
         self.output_name = self.session.get_outputs()[0].name
         self.class_names = [
-            'person', 'bicycle', 'car', 'motorbike', 'aeroplane', 'bus', 'train', 'truck', 'boat',
-            'traffic light', 'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird',
-            'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe',
-            'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee', 'skis', 'snowboard',
-            'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard', 'tennis racket',
-            'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
-            'orange', 'broccoli', 'carrot', 'hot dog', 'clearzza', 'donut', 'cake', 'chair', 'couch', 'potted plant',
-            'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
-            'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase',
-            'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+            'person'
         ]
 
     def detect(self, frame):
@@ -81,7 +72,7 @@ class ObjectDetector:
             class_conf = class_scores[class_id]
             confidence = obj_conf * class_conf
 
-            if confidence > 0.4:
+            if confidence > 0.4 and class_id == 0:  # only keep 'person'
                 cx, cy, w, h = det[:4]
                 scale_x = original_w / input_size
                 scale_y = original_h / input_size
@@ -90,7 +81,7 @@ class ObjectDetector:
                 x2 = int((cx + w / 2) * scale_x)
                 y2 = int((cy + h / 2) * scale_y)
 
-                label = self.class_names[class_id] if class_id < len(self.class_names) else str(class_id)
+                label = 'person'
                 detections.append({
                     "bbox": [x1, y1, x2, y2],
                     "label": label,
@@ -133,7 +124,6 @@ class Sort:
                 }
             updated_tracks.append(det)
 
-        # Remove old tracks
         now = time.time()
         self.tracks = {
             tid: trk for tid, trk in self.tracks.items()
