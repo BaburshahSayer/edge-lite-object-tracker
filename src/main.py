@@ -25,7 +25,7 @@ def draw_detections(frame, detections):
 object_lifecycle = {}
 
 # Save tracking data to CSV
-**** def save_tracking_data_to_csv(output_file="tracking_data.csv"):
+def save_tracking_data_to_csv(output_file="tracking_data.csv"):
     fieldnames = ["track_id", "label", "x1", "y1", "x2", "y2", "start_time", "end_time"]
     with open(output_file, mode="w", newline='') as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -40,7 +40,7 @@ object_lifecycle = {}
                 "y2": data.get("bbox", [0, 0, 0, 0])[3],
                 "start_time": data.get("start_time", ""),
                 "end_time": data.get("end_time", "")
-            }) ****
+            }) 
 
 # Main function
 def main():
