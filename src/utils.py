@@ -41,3 +41,6 @@ def match_detections_with_tracks(tracked_objects, detections, iou_threshold=0.5)
             result["label"] = best_match["label"]
         results.append(result)
     return results
+
+def euclidean_distance(p1, p2):
+    return math.hypot(p1[0] - p2[0], p1[1] - p2[1])
