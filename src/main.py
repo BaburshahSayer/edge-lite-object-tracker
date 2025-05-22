@@ -46,7 +46,7 @@ def save_tracking_data_to_csv(output_file="tracking_data.csv"):
 def main():
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        print("❌ Failed to open webcam.")
+        print(" Failed to open webcam.")
         return
 
     detector = ObjectDetector(model_path="/Users/babursayer/Desktop/0101/edge-lite-object-tracker/models/yolov5s.onnx")
@@ -65,7 +65,7 @@ def main():
     while True:
         ret, frame = cap.read()
         if not ret:
-            print("❌ Failed to read frame.")
+            print("Failed to read frame.")
             break
 
         frame_count += 1
@@ -119,14 +119,14 @@ def main():
                     ad_image = cv2.resize(ad_image, (640, 480))
                     cv2.imshow("Advertisement", ad_image)
                 else:
-                    print("⚠️ Could not load single_ad.jpg")
+                    print("Could not load single_ad.jpg")
             elif person_count > 1:
                 ad_image = cv2.imread("group_ad.jpg")
                 if ad_image is not None:
                     ad_image = cv2.resize(ad_image, (640, 480))
                     cv2.imshow("Advertisement", ad_image)
                 else:
-                    print("⚠️ Could not load group_ad.jpg")
+                    print("Could not load group_ad.jpg")
             else:
                 cv2.destroyWindow("Advertisement")
         else:
